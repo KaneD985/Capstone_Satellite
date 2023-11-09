@@ -6,6 +6,7 @@ FlexCAN_T4<CAN0, RX_SIZE_256, TX_SIZE_16> CANbus;  // CAN0 is the CAN module to 
 
 void setup() {
   pinMode(ledPin, OUTPUT);
+  Serial.begin(115200);
   while (!Serial && millis() < 4000);
   CANbus.begin();
   CANbus.setBaudRate(500000);  // Set the CAN bus speed to 500 kbps (adjust as needed)
@@ -29,7 +30,7 @@ void loop() {
   delay(1000);
   digitalWrite(ledPin, LOW);   // LED off
   delay(1000);
-  
+
   if (CANbus.read(msg)) {
     Serial.print("Received message with ID: ");
     Serial.println(msg.id, HEX);
