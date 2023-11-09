@@ -14,7 +14,7 @@ void setup() {
 
 void loop() {
   CAN_message_t msg;
-  msg.id = 0x12; // CAN message ID
+  msg.id = 0x124; // CAN message ID
   msg.len = 8;    // Message length (up to 8 bytes)
   
 
