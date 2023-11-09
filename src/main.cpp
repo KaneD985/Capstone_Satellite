@@ -29,4 +29,15 @@ void loop() {
   delay(1000);
   digitalWrite(ledPin, LOW);   // LED off
   delay(1000);
+  
+  if (CANbus.read(msg)) {
+    Serial.print("Received message with ID: ");
+    Serial.println(msg.id, HEX);
+    Serial.print("Message contents: ");
+    for (int i = 0; i < msg.len; i++) {
+      Serial.print(msg.buf[i], HEX);
+      Serial.print(" ");
+    }
+    Serial.println();
+  }
 }
