@@ -16,19 +16,19 @@ void loop() {
   CAN_message_t msg;
   msg.id = 0x123; // CAN message ID
   msg.len = 8;    // Message length (up to 8 bytes)
-  msg.buf[0] = 0x11;
-  msg.buf[1] = 0x22;
-  msg.buf[2] = 0x33;
-  msg.buf[3] = 0x44;
-  msg.buf[4] = 0x55;
-  msg.buf[5] = 0x66;
-  msg.buf[6] = 0x77;
-  msg.buf[7] = 0x88;
   
-  digitalWrite(ledPin, HIGH);  // LED on
+  for (int i = 0; i < msg.len; i++) {
+    msg.buf[i] = random(0, 256);  // Generate a random number between 0 and 255
+  }
+
+  // Check if the last byte of the message is even
+  if (msg.buf[msg.len - 1] % 2 == 0) {
+    digitalWrite(ledPin, HIGH);  // LED on
+  } else {
+    digitalWrite(ledPin, LOW);   // LED off
+  }
+
   CANbus.write(msg);
-  delay(1000);
-  digitalWrite(ledPin, LOW);   // LED off
   delay(1000);
 
   if (CANbus.read(msg)) {
