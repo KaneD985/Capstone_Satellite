@@ -1,44 +1,36 @@
 #include <Arduino.h>
 #include <FlexCAN_T4.h>
+#include <Wire.h>
+#include <SPI.h>
+#include <Adafruit_MLX90614.h>
+
+
 
 const int ledPin = 13;
 FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> CANbus;  // CAN0 is the CAN module to use
 CAN_message_t msg;
+Adafruit_MLX90614 mlx = Adafruit_MLX90614();
 
 void setup() {
   pinMode(ledPin, OUTPUT);
   Serial.begin(9600);
   while (!Serial && millis() < 4000);
   CANbus.begin();
-  CANbus.setBaudRate(500000);  // Set the CAN bus speed to 500 kbps (adjust as needed)
+  CANbus.setBaudRate(500000); 
+  mlx.begin();
 }
 
 
 
 void loop() {
   Serial.println("\n Loop Running... \n");
-  msg.id = 0x123; // CAN message ID
-  msg.len = 8;    // Message length (up to 8 bytes)
+  msg.id = 0x124; // CAN message ID
+  msg.len = 1;    // Message length (up to 8 bytes)
   
 
-  for (int i = 0; i < msg.len; i++) {
-    msg.buf[0] = 0x00;
-    msg.buf[1] = 0x11;
-    msg.buf[2] = 0x22;
-    msg.buf[3] = 0x33;
-    msg.buf[4] = 0x44;
-    msg.buf[5] = 0x55;
-    msg.buf[6] = 0x66;
-    msg.buf[7] = random(0, 255);
-  }
+  float tempC = mlx.readAmbientTempC();
+  memcpy(msg.buf, &tempC, sizeof(tempC));
 
-  // Check if the last byte of the message is even
-  if (msg.buf[msg.len - 1] % 2 == 0) {
-    digitalWrite(ledPin, HIGH);
-    CANbus.write(msg);  // LED on
-  } else {
-    digitalWrite(ledPin, LOW);   // LED off
-  }
 
   bool writeResult = CANbus.write(msg);  // Send the message
   Serial.print("Writing Message: ");
@@ -52,13 +44,15 @@ void loop() {
   Serial.println(readResult);
 
   if (readResult) {
+    digitalWrite(ledPin, HIGH);
     Serial.print("Received message with ID: ");
     Serial.println(msg.id, HEX);
     Serial.print("Message contents: ");
     for (int i = 0; i < msg.len; i++) {
-      Serial.print(msg.buf[i], HEX);
+      Serial.print(msg.buf[i], DEC);
       Serial.print(" ");
     }
     Serial.println();
+    digitalWrite(ledPin, LOW);
   }
 }
