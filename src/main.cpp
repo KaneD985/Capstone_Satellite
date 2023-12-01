@@ -4,8 +4,6 @@
 #include <SPI.h>
 #include <Adafruit_MLX90614.h>
 
-
-
 const int ledPin = 13;
 FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> CANbus;  // CAN0 is the CAN module to use
 CAN_message_t msg;
@@ -20,17 +18,22 @@ void setup() {
   mlx.begin();
 }
 
-
-
 void loop() {
   Serial.println("\n Loop Running... \n");
   msg.id = 0x124; // CAN message ID
-  msg.len = 1;    // Message length (up to 8 bytes)
+  msg.len = 8;    // Message length (up to 8 bytes)
   
+  float tempO = mlx.readObjectTempC();
+  //Serial.print("Object = "); Serial.print(tempC); Serial.println("*C");
+  float tempA = mlx.readAmbientTempC();
 
-  float tempC = mlx.readAmbientTempC();
-  memcpy(msg.buf, &tempC, sizeof(tempC));
+  int sendObjVal = tempO * 100;
+  msg.buf[0] = sendObjVal >> 8;
+  msg.buf[1] = sendObjVal & 0xFF;
 
+  int sendAmbVal = tempA * 100;
+  msg.buf[2] = sendAmbVal >> 8;
+  msg.buf[3] = sendAmbVal & 0xFF;
 
   bool writeResult = CANbus.write(msg);  // Send the message
   Serial.print("Writing Message: ");
@@ -48,57 +51,18 @@ void loop() {
     Serial.print("Received message with ID: ");
     Serial.println(msg.id, HEX);
     Serial.print("Message contents: ");
-    for (int i = 0; i < msg.len; i++) {
-      Serial.print(msg.buf[i], DEC);
-      Serial.print(" ");
-    }
+    // for (int i = 0; i < msg.len; i++) {
+    //   Serial.print(msg.buf[i], HEX);
+    //   Serial.print(" ");
+    // }
     Serial.println();
+    float temp_object = ((msg.buf[0] << 8) | msg.buf[1]) / 100.;
+    Serial.print("Temp: ");
+    Serial.println(temp_object);
+
+    float temp_ambient = ((msg.buf[2] << 8) | msg.buf[3]) / 100.;
+    Serial.print("Ambient: ");
+    Serial.println(temp_ambient);
     digitalWrite(ledPin, LOW);
-  }
-}#include <Arduino.h>
-#include <FlexCAN_T4.h>
-
-const int ledPin = 13;
-FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> CANbus;  // CAN0 is the CAN module to use
-
-void setup() {
-  pinMode(ledPin, OUTPUT);
-  Serial.begin(115200);
-  while (!Serial && millis() < 4000);
-  CANbus.begin();
-  CANbus.setBaudRate(500000);  // Set the CAN bus speed to 500 kbps (adjust as needed)
-}
-
-void loop() {
-  CAN_message_t msg;
-  msg.id = 0x124; // CAN message ID
-  msg.len = 8;    // Message length (up to 8 bytes)
-  
-
-  for (int i = 0; i < msg.len; i++) {
-    msg.buf[i] = random(0, 256);  // Generate a random number between 0 and 255
-  }
-
-  // Check if the last byte of the message is even
-  if (msg.buf[msg.len - 1] % 2 == 0) {
-    digitalWrite(ledPin, HIGH);  // LED on
-  } else {
-    digitalWrite(ledPin, LOW);   // LED off
-  }
-
-  CANbus.write(msg);
-  
-  delay(1000);
-
-  if (CANbus.read(msg)) {
-    Serial.print("Received message with ID: ");
-    Serial.println(msg.id, HEX);
-    Serial.print("Message contents: ");
-    
-    for (int i = 0; i < msg.len; i++) {
-      Serial.print(msg.buf[i], HEX);
-      Serial.print(" ");
-    }
-    Serial.println();
   }
 }
