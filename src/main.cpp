@@ -3,11 +3,20 @@
 #include <Wire.h>
 #include <SPI.h>
 #include <Adafruit_MLX90614.h>
+#include <bmi323.h>
 
 const int ledPin = 13;
 FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> CANbus;  // CAN0 is the CAN module to use
 CAN_message_t msg;
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
+
+// =================== BMI323 Static Functions Declaration ==========================
+
+static int8_t set_gyro_config(struct bmi3_dev *dev);
+
+static float lsb_to_dps(int16_t val, float dps, uint8_t bit_width);
+
+// ==================================================================================
 
 void setup() {
   pinMode(ledPin, OUTPUT);
