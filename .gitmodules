@@ -1,0 +1,3 @@
+[submodule "BMI323-Sensor-API"]
+	path = BMI323-Sensor-API
+	url = https://github.com/boschsensortec/BMI323-Sensor-API
