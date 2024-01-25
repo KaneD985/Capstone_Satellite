@@ -4,132 +4,95 @@
 #include <SPI.h>
 #include <Adafruit_MLX90614.h>
 #include <math.h>
-#include "bmi323.h"
-#include "common.h"
+
+#define INC_ADDRESS 0x69
+#define ACC_CONF  0x20  //Page 91
+#define GYR_CONF  0x21  //Page 93
+#define CMD       0x7E  //Page 65
 
 const int ledPin = 13;
 FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> CANbus;  // CAN0 is the CAN module to use
 CAN_message_t msg;
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
+short x, y, z;
 
-// =================== BMI323 Static Functions Declaration ==========================
+void softReset(){  
+    writeRegister16(CMD, 0xDEAF);
+    delay(50);    
+  }
 
-static int8_t set_gyro_config(struct bmi3_dev *dev);
+//Write data in 16 bits
+void writeRegister16(uint16_t reg, uint16_t value) {
+  Wire.beginTransmission(INC_ADDRESS);
+  Wire.write(reg);
+  //Low 
+  Wire.write((uint16_t)value & 0xff);
+  //High
+  Wire.write((uint16_t)value >> 8);
+  Wire.endTransmission();
+}
 
-static float lsb_to_dps(int16_t val, float dps, uint8_t bit_width);
+//Read data in 16 bits
+uint16_t readRegister16(uint8_t reg) {
+  Wire.beginTransmission(INC_ADDRESS);
+  Wire.write(reg);
+  Wire.endTransmission(false);
+  int n = Wire.requestFrom(INC_ADDRESS, 4);  
+  uint16_t data[4];
+  int i =0;
+  while(Wire.available()){
+    data[i] = Wire.read();
+    i++;
+  }  
+  return (data[3]   | data[2] << 8);
+}
 
-// ==================================================================================
+//Read all axis
+void readAllAccel() {
+  Wire.beginTransmission(INC_ADDRESS);
+  Wire.write(0x03);
+  Wire.endTransmission();
+  Wire.requestFrom(INC_ADDRESS, 6);
+  short data[6];
+  int i =0;
+  while(Wire.available()){
+    data[i] = Wire.read();
+    i++;
+  }
+
+  //Offset = 2 because the 2 first bytes are dummy (useless)
+  int offset = 2;  
+  x =             (data[offset + 0]   | (short)data[offset + 1] << 8);  //0x03
+  y =             (data[offset + 2]   | (short)data[offset + 3] << 8);  //0x04
+  z =             (data[offset + 4]   | (short)data[offset + 5] << 8);  //0x05
+}
 
 void setup() {
   pinMode(ledPin, OUTPUT);
   Serial.begin(9600);
   while (!Serial && millis() < 4000);
+  Wire.begin();
+  Wire.setClock(400000); //Increase I2C clock speed to 400kHz
   CANbus.begin();
   CANbus.setBaudRate(500000); 
   mlx.begin();
+  softReset();
+  writeRegister16(ACC_CONF, 0x708C); 
+  writeRegister16(GYR_CONF, 0x708B);
 }
 
 void loop() {
-
-
-
-
-
   // =================== BMI323 Logic ======================================================
-
-  /* Status of API are returned to this variable. */
-    int8_t rslt;
-
-    /* Variable to define limit to print gyro data. */
-    uint8_t limit = 100;
-
-    float x = 0, y = 0, z = 0;
-    uint8_t indx = 0;
-
-    /* Sensor initialization configuration. */
-    struct bmi3_dev dev = { 0 };
-
-    /* Create an instance of sensor data structure. */
-    struct bmi3_sensor_data sensor_data = { 0 };
-
-    /* Initialize the interrupt status of gyro. */
-    uint16_t int_status = 0;
-
-    /* Structure to define gyro configuration. */
-    struct bmi3_sens_config config = { 0 };
-
-    /* Function to select interface between SPI and I2C, according to that the device structure gets updated.
-     * Interface reference is given as a parameter
-     * For I2C : BMI3_I2C_INTF
-     * For SPI : BMI3_SPI_INTF
-     */
-    rslt = bmi3_interface_init(&dev, BMI3_SPI_INTF);
-    bmi3_error_codes_print_result("bmi3_interface_init", rslt);
-
-    if (rslt == BMI323_OK)
-    {
-        /* Initialize bmi323. */
-        rslt = bmi323_init(&dev);
-        bmi3_error_codes_print_result("bmi323_init", rslt);
-
-        if (rslt == BMI323_OK)
-        {
-            /* Gyro configuration settings. */
-            rslt = set_gyro_config(&dev);
-
-            if (rslt == BMI323_OK)
-            {
-                rslt = bmi323_get_sensor_config(&config, 1, &dev);
-                bmi3_error_codes_print_result("bmi323_get_sensor_config", rslt);
-            }
-
-            if (rslt == BMI323_OK)
-            {
-                /* Select gyro sensor. */
-                sensor_data.type = BMI323_GYRO;
-
-                printf("\nData set, Range, Gyr_Raw_X, Gyr_Raw_Y, Gyr_Raw_Z, Gyr_dps_X, Gyr_dps_Y, Gyr_dps_Z\n\n");
-
-                /* Loop to print gyro data when interrupt occurs. */
-                while (indx <= limit)
-                {
-                    /* To get the data ready interrupt status of gyro. */
-                    rslt = bmi323_get_int1_status(&int_status, &dev);
-                    bmi3_error_codes_print_result("Get interrupt status", rslt);
-
-                    /* To check the data ready interrupt status and print the status for 10 samples. */
-                    if (int_status & BMI3_INT_STATUS_GYR_DRDY)
-                    {
-                        /* Get gyro data for x, y and z axis. */
-                        rslt = bmi323_get_sensor_data(&sensor_data, 1, &dev);
-                        bmi3_error_codes_print_result("Get sensor data", rslt);
-
-                        /* Converting lsb to degree per second for 16 bit gyro at 2000dps range. */
-                        x = lsb_to_dps(sensor_data.sens_data.gyr.x, (float)2000, dev.resolution);
-                        y = lsb_to_dps(sensor_data.sens_data.gyr.y, (float)2000, dev.resolution);
-                        z = lsb_to_dps(sensor_data.sens_data.gyr.z, (float)2000, dev.resolution);
-
-                        /* Print the data in dps. */
-                        printf("%d, %d, %d, %d, %d, %4.2f, %4.2f, %4.2f\n",
-                               indx,
-                               config.cfg.gyr.range,
-                               sensor_data.sens_data.gyr.x,
-                               sensor_data.sens_data.gyr.y,
-                               sensor_data.sens_data.gyr.z,
-                               x,
-                               y,
-                               z);
-
-                        indx++;
-                    }
-                }
-            }
-        }
-    }
-
-    bmi3_coines_deinit();
-
-    // =======================================================================================
+  if(readRegister16(0x02) == 0x00){
+    readAllAccel();
+    Serial.print("X: ");
+    Serial.println(x);
+    Serial.print(" Y: ");
+    Serial.println(y);
+    Serial.print(" Z: ");
+    Serial.println(z);
+  }
+  // =======================================================================================
   Serial.println("\n Loop Running... \n");
   msg.id = 0x124; // CAN message ID
   msg.len = 8;    // Message length (up to 8 bytes)
@@ -162,10 +125,6 @@ void loop() {
     Serial.print("Received message with ID: ");
     Serial.println(msg.id, HEX);
     Serial.print("Message contents: ");
-    // for (int i = 0; i < msg.len; i++) {
-    //   Serial.print(msg.buf[i], HEX);
-    //   Serial.print(" ");
-    // }
     Serial.println();
     float temp_object = ((msg.buf[0] << 8) | msg.buf[1]) / 100.;
     Serial.print("Temp: ");
