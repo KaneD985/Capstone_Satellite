@@ -9,8 +9,8 @@
 const int ledPin = 13;
 FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> CANbus;  // CAN0 is the CAN module to use
 CAN_message_t msg1;
-Adafruit_MLX90614 mlx1 = Adafruit_MLX90614();
-Adafruit_MLX90614 mlx2 = Adafruit_MLX90614();
+Adafruit_MLX90614 mlx1 = Adafruit_MLX90614(0x5A);
+Adafruit_MLX90614 mlx2 = Adafruit_MLX90614(0x5B);
 
 void setup() {
   pinMode(ledPin, OUTPUT);
@@ -18,8 +18,8 @@ void setup() {
   while (!Serial && millis() < 4000);
   CANbus.begin();
   CANbus.setBaudRate(500000); 
-  mlx1.begin();
-  mlx2.begin();
+  mlx1.begin(0x5A, &Wire);
+  mlx2.begin(0X5B, &Wire1);
 }
 
 void loop() {
