@@ -16,9 +16,9 @@ FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> CANbus;  // CAN0 is the CAN module to 
 CAN_message_t msg;
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
 Adafruit_MLX90640 mlx2;
-short x, y, z, w;
+uint16_t gyr_x, gyr_y, gyr_z;
 
-//Write data in 16 bits
+///Write data in 16 bits
 void writeRegister16(uint16_t reg, uint16_t value) {
   Wire.beginTransmission(INC_ADDRESS);
   Wire.write(reg);
@@ -34,9 +34,9 @@ uint16_t readRegister16(uint8_t reg) {
   Wire.beginTransmission(INC_ADDRESS);
   Wire.write(reg);
   Wire.endTransmission(false);
-  int n = Wire.requestFrom(INC_ADDRESS, 20);  
+  int n = Wire.requestFrom(INC_ADDRESS, 4);  
   uint16_t data[20];
-  int i = 0;
+  int i =0;
   while(Wire.available()){
     data[i] = Wire.read();
     i++;
@@ -50,24 +50,24 @@ void readAllAccel() {
   Wire.write(0x03);
   Wire.endTransmission();
   Wire.requestFrom(INC_ADDRESS, 20);
-  short data[20];
+  uint16_t data[20];
   int i =0;
   while(Wire.available()){
     data[i] = Wire.read();
     i++;
   }
+
   //Offset = 2 because the 2 first bytes are dummy (useless)
-  int offset = 2;  
-  x = (data[offset + 7] | (short)data[offset + 6] << 8); 
-  y = (data[offset + 9] | (short)data[offset + 8] << 8);  
-  z = (data[offset + 11] | (short)data[offset + 10] << 8); 
-  w = data[19];
+  int offset = 2;
+  gyr_x =         (data[offset + 6]   | (uint16_t)data[offset + 7] << 8);  //0x06
+  gyr_y =         (data[offset + 8]   | (uint16_t)data[offset + 9] << 8);  //0x07
+  gyr_z =         (data[offset + 10]  | (uint16_t)data[offset + 11] << 8); //0x08
 }
 
 void softReset(){  
-    writeRegister16(CMD, 0xDEAF);
-    delay(50);    
-  }
+  writeRegister16(CMD, 0xDEAF);
+  delay(50);    
+}
 
 void setup() {
   pinMode(ledPin, OUTPUT);
@@ -76,48 +76,59 @@ void setup() {
   Wire.begin();
   Wire.setClock(400000); //Increase I2C clock speed to 400kHz
   Wire1.begin();
-  Wire1.setClock(400000); //Increase I2C clock speed to 400kHz
+  Wire1.setClock(400000); //Increase I2C clock speed to 1MHz
   CANbus.begin();
   CANbus.setBaudRate(500000); 
   mlx.begin();
   mlx2.begin();
   softReset();
-  writeRegister16(ACC_CONF, 0x708C); 
+  writeRegister16(ACC_CONF, 0x708B); 
   writeRegister16(GYR_CONF, 0x708B);
 }
 
 void loop() {
-  // =================== BMI323 Logic ======================================================
-    // readAllAccel();
-    // Serial.print("X: ");
-    // Serial.println(x);
-    // Serial.print("Y: ");
-    // Serial.println(y);
-    // Serial.print("Z: ");
-    // Serial.println(z);
-    // Serial.print("W: ");
-    // Serial.println(w);
-  // =======================================================================================
   Serial.println("\n Loop Running... \n");
+  // =================== BMI323 Logic ======================================================
+  readRegister16(0x02);
+  if(readRegister16(0x02) == 0x00) {
+    //Read ChipID
+    Serial.print("ChipID:");
+    Serial.print(readRegister16(0x00));    
+    readAllAccel();             // read all accelerometer/gyroscope/temperature data  
+    Serial.print(" \tgyr_x:");
+    Serial.print(gyr_x);
+    Serial.print(" \tgyr_y:");
+    Serial.print(gyr_y);
+    Serial.print(" \tgyr_z:");
+    Serial.print(gyr_z);   
+  }
+  delay(500);
+  // =======================================================================================
+
+  //======================MLX90640 Part=====================================================
+  float temp640[32*24];
+  mlx2.getFrame(temp640);
+  float sum = 0;
+  for (uint8_t h=0; h<24; h++) {
+    for (uint8_t w=0; w<32; w++) {
+      float t = temp640[h*32 + w];
+      Serial.print(t); Serial.print(" ");
+      sum += t;
+    }
+    printf("\n");
+  }
+  
+  float average = sum / (32*24);
+  Serial.print("Average: "); 
+  Serial.println(average);
+  //=========================================================================================
+  
   msg.id = 0x124; // CAN message ID
   msg.len = 8;    // Message length (up to 8 bytes)
   
   float tempO = mlx.readObjectTempC();
-  //Serial.print("Object = "); Serial.print(tempC); Serial.println("*C");
   float tempA = mlx.readAmbientTempC();
-
-  //MLX90640 Part
-  float temp640[32*24];
-  mlx2.getFrame(temp640);
-  float sum = 0;
-  for (int i = 0; i < 32*24; i++) {
-    Serial.println(temp640[i]);
-    sum += temp640[i];
-  }
-  float average = sum / (32*24);
-  Serial.print("Average: "); 
-  Serial.println(average);
-
+  
   int sendObjVal = tempO * 100;
   msg.buf[0] = sendObjVal >> 8;
   msg.buf[1] = sendObjVal & 0xFF;
@@ -130,7 +141,7 @@ void loop() {
   Serial.print("Writing Message: ");
   Serial.println(writeResult);  // Print the result of the write operation
 
-  delay(1000);  // Wait for a while before trying to read
+  delay(10000);  // Wait for a while before trying to read
 
   // Attempt to read a message and print if successful
   bool readResult = CANbus.read(msg);
@@ -151,5 +162,6 @@ void loop() {
     Serial.print("Ambient: ");
     Serial.println(temp_ambient);
     digitalWrite(ledPin, LOW);
+    
   }
 }
