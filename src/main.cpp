@@ -75,6 +75,8 @@ void setup() {
   while (!Serial && millis() < 4000);
   Wire.begin();
   Wire.setClock(400000); //Increase I2C clock speed to 400kHz
+  Wire1.begin();
+  Wire1.setClock(400000); //Increase I2C clock speed to 400kHz
   CANbus.begin();
   CANbus.setBaudRate(500000); 
   mlx.begin();
@@ -86,15 +88,15 @@ void setup() {
 
 void loop() {
   // =================== BMI323 Logic ======================================================
-    readAllAccel();
-    Serial.print("X: ");
-    Serial.println(x);
-    Serial.print("Y: ");
-    Serial.println(y);
-    Serial.print("Z: ");
-    Serial.println(z);
-    Serial.print("W: ");
-    Serial.println(w);
+    // readAllAccel();
+    // Serial.print("X: ");
+    // Serial.println(x);
+    // Serial.print("Y: ");
+    // Serial.println(y);
+    // Serial.print("Z: ");
+    // Serial.println(z);
+    // Serial.print("W: ");
+    // Serial.println(w);
   // =======================================================================================
   Serial.println("\n Loop Running... \n");
   msg.id = 0x124; // CAN message ID
@@ -109,6 +111,7 @@ void loop() {
   mlx2.getFrame(temp640);
   float sum = 0;
   for (int i = 0; i < 32*24; i++) {
+    Serial.println(temp640[i]);
     sum += temp640[i];
   }
   float average = sum / (32*24);
