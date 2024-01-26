@@ -16,11 +16,6 @@ CAN_message_t msg;
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
 short x, y, z;
 
-void softReset(){  
-    writeRegister16(CMD, 0xDEAF);
-    delay(50);    
-  }
-
 //Write data in 16 bits
 void writeRegister16(uint16_t reg, uint16_t value) {
   Wire.beginTransmission(INC_ADDRESS);
@@ -67,6 +62,11 @@ void readAllAccel() {
   z =             (data[offset + 4]   | (short)data[offset + 5] << 8);  //0x05
 }
 
+void softReset(){  
+    writeRegister16(CMD, 0xDEAF);
+    delay(50);    
+  }
+
 void setup() {
   pinMode(ledPin, OUTPUT);
   Serial.begin(9600);
@@ -83,15 +83,14 @@ void setup() {
 
 void loop() {
   // =================== BMI323 Logic ======================================================
-  if(readRegister16(0x02) == 0x00){
-    readAllAccel();
-    Serial.print("X: ");
-    Serial.println(x);
-    Serial.print(" Y: ");
-    Serial.println(y);
-    Serial.print(" Z: ");
-    Serial.println(z);
-  }
+  
+  readAllAccel();
+  Serial.print("X: ");
+  Serial.println(x);
+  Serial.print("Y: ");
+  Serial.println(y);
+  Serial.print("Z: ");
+  Serial.println(z);
   // =======================================================================================
   Serial.println("\n Loop Running... \n");
   msg.id = 0x124; // CAN message ID
