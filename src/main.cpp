@@ -3,9 +3,10 @@
 #include <Wire.h>
 #include <SPI.h>
 #include <Adafruit_MLX90614.h>
+#include <Adafruit_MLX90640.h>
 #include <math.h>
 
-#define INC_ADDRESS 0x69
+#define INC_ADDRESS 0x68
 #define ACC_CONF  0x20  //Page 91
 #define GYR_CONF  0x21  //Page 93
 #define CMD       0x7E  //Page 65
@@ -14,7 +15,8 @@ const int ledPin = 13;
 FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> CANbus;  // CAN0 is the CAN module to use
 CAN_message_t msg;
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
-uint16_t gyr_x, gyr_y, gyr_z;
+Adafruit_MLX90640 mlx2;
+short x, y, z, w;
 
 //Write data in 16 bits
 void writeRegister16(uint16_t reg, uint16_t value) {
@@ -32,9 +34,9 @@ uint16_t readRegister16(uint8_t reg) {
   Wire.beginTransmission(INC_ADDRESS);
   Wire.write(reg);
   Wire.endTransmission(false);
-  int n = Wire.requestFrom(INC_ADDRESS, 4);  
-  uint16_t data[4];
-  int i =0;
+  int n = Wire.requestFrom(INC_ADDRESS, 20);  
+  uint16_t data[20];
+  int i = 0;
   while(Wire.available()){
     data[i] = Wire.read();
     i++;
@@ -47,19 +49,19 @@ void readAllAccel() {
   Wire.beginTransmission(INC_ADDRESS);
   Wire.write(0x03);
   Wire.endTransmission();
-  Wire.requestFrom(INC_ADDRESS, 6);
-  short data[6];
+  Wire.requestFrom(INC_ADDRESS, 20);
+  short data[20];
   int i =0;
   while(Wire.available()){
     data[i] = Wire.read();
     i++;
   }
-
   //Offset = 2 because the 2 first bytes are dummy (useless)
   int offset = 2;  
-  gyr_x =         (data[offset + 6]   | (uint16_t)data[offset + 7] << 8);  //0x06
-  gyr_y =         (data[offset + 8]   | (uint16_t)data[offset + 9] << 8);  //0x07
-  gyr_z =         (data[offset + 10]  | (uint16_t)data[offset + 11] << 8); //0x08
+  x = (data[offset + 7] | (short)data[offset + 6] << 8); 
+  y = (data[offset + 9] | (short)data[offset + 8] << 8);  
+  z = (data[offset + 11] | (short)data[offset + 10] << 8); 
+  w = data[19];
 }
 
 void softReset(){  
@@ -76,6 +78,7 @@ void setup() {
   CANbus.begin();
   CANbus.setBaudRate(500000); 
   mlx.begin();
+  mlx2.begin();
   softReset();
   writeRegister16(ACC_CONF, 0x708C); 
   writeRegister16(GYR_CONF, 0x708B);
@@ -83,14 +86,15 @@ void setup() {
 
 void loop() {
   // =================== BMI323 Logic ======================================================
-  
-  readAllAccel();
-  Serial.print("X: ");
-  Serial.println(gyr_x);
-  Serial.print("Y: ");
-  Serial.println(gyr_y);
-  Serial.print("Z: ");
-  Serial.println(gyr_z);
+    readAllAccel();
+    Serial.print("X: ");
+    Serial.println(x);
+    Serial.print("Y: ");
+    Serial.println(y);
+    Serial.print("Z: ");
+    Serial.println(z);
+    Serial.print("W: ");
+    Serial.println(w);
   // =======================================================================================
   Serial.println("\n Loop Running... \n");
   msg.id = 0x124; // CAN message ID
@@ -99,6 +103,17 @@ void loop() {
   float tempO = mlx.readObjectTempC();
   //Serial.print("Object = "); Serial.print(tempC); Serial.println("*C");
   float tempA = mlx.readAmbientTempC();
+
+  //MLX90640 Part
+  float temp640[32*24];
+  mlx2.getFrame(temp640);
+  float sum = 0;
+  for (int i = 0; i < 32*24; i++) {
+    sum += temp640[i];
+  }
+  float average = sum / (32*24);
+  Serial.print("Average: "); 
+  Serial.println(average);
 
   int sendObjVal = tempO * 100;
   msg.buf[0] = sendObjVal >> 8;
