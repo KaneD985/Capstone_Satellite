@@ -14,7 +14,7 @@ const int ledPin = 13;
 FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> CANbus;  // CAN0 is the CAN module to use
 CAN_message_t msg;
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
-short x, y, z;
+uint16_t gyr_x, gyr_y, gyr_z;
 
 //Write data in 16 bits
 void writeRegister16(uint16_t reg, uint16_t value) {
@@ -57,9 +57,9 @@ void readAllAccel() {
 
   //Offset = 2 because the 2 first bytes are dummy (useless)
   int offset = 2;  
-  x =             (data[offset + 0]   | (short)data[offset + 1] << 8);  //0x03
-  y =             (data[offset + 2]   | (short)data[offset + 3] << 8);  //0x04
-  z =             (data[offset + 4]   | (short)data[offset + 5] << 8);  //0x05
+  gyr_x =         (data[offset + 6]   | (uint16_t)data[offset + 7] << 8);  //0x06
+  gyr_y =         (data[offset + 8]   | (uint16_t)data[offset + 9] << 8);  //0x07
+  gyr_z =         (data[offset + 10]  | (uint16_t)data[offset + 11] << 8); //0x08
 }
 
 void softReset(){  
@@ -86,11 +86,11 @@ void loop() {
   
   readAllAccel();
   Serial.print("X: ");
-  Serial.println(x);
+  Serial.println(gyr_x);
   Serial.print("Y: ");
-  Serial.println(y);
+  Serial.println(gyr_y);
   Serial.print("Z: ");
-  Serial.println(z);
+  Serial.println(gyr_z);
   // =======================================================================================
   Serial.println("\n Loop Running... \n");
   msg.id = 0x124; // CAN message ID
