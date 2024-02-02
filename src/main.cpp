@@ -5,6 +5,7 @@
 #include <Adafruit_MLX90614.h>
 #include <Adafruit_MLX90640.h>
 #include <math.h>
+#include <TeensyThreads.h>
 
 #define INC_ADDRESS 0x68
 #define ACC_CONF  0x20  //Page 91
@@ -12,11 +13,16 @@
 #define CMD       0x7E  //Page 65
 
 const int ledPin = 13;
+const int hallEffectPin = 41;
+const double TIMER_MICROSECONDS = 150000;
 FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> CANbus;  // CAN0 is the CAN module to use
 CAN_message_t msg;
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
 Adafruit_MLX90640 mlx2;
 uint16_t gyr_x, gyr_y, gyr_z;
+IntervalTimer halleffectTimer;
+volatile  double last_rpm = 0;
+volatile int numOfRotations = 0;
 
 ///Write data in 16 bits
 void writeRegister16(uint16_t reg, uint16_t value) {
@@ -69,8 +75,26 @@ void softReset(){
   delay(50);    
 }
 
+void calculateRPM() {
+  double rpm = numOfRotations / (TIMER_MICROSECONDS / 1000000.0);
+  numOfRotations = 0;
+  last_rpm = rpm;
+}
+
+void thread_func() {
+  while(true) {
+    uint8_t halleffectOuput = digitalRead(hallEffectPin);
+    if (halleffectOuput == 0) {
+      numOfRotations ++;
+    }
+  }
+}
+
 void setup() {
   pinMode(ledPin, OUTPUT);
+  pinMode(hallEffectPin, INPUT);
+  threads.addThread(thread_func, 1);
+  halleffectTimer.begin(calculateRPM, TIMER_MICROSECONDS);
   Serial.begin(9600);
   while (!Serial && millis() < 4000);
   Wire.begin();
