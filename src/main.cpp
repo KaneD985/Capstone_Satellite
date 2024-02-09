@@ -144,6 +144,7 @@ void loop() {
   float average = sum / (32*24);
   Serial.print("Average: "); 
   Serial.println(average);
+  
   //=========================================================================================
   
   msg.id = 0x124; // CAN message ID
