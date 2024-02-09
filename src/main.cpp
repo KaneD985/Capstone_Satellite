@@ -24,18 +24,18 @@ IntervalTimer halleffectTimer;
 volatile  double last_rpm = 0;
 volatile int numOfRotations = 0;
 
-///Write data in 16 bits
+// Write data in 16 bits
 void writeRegister16(uint16_t reg, uint16_t value) {
   Wire.beginTransmission(INC_ADDRESS);
   Wire.write(reg);
-  //Low 
+  // Low 
   Wire.write((uint16_t)value & 0xff);
-  //High
+  // High
   Wire.write((uint16_t)value >> 8);
   Wire.endTransmission();
 }
 
-//Read data in 16 bits
+// Read data in 16 bits
 uint16_t readRegister16(uint8_t reg) {
   Wire.beginTransmission(INC_ADDRESS);
   Wire.write(reg);
@@ -50,7 +50,7 @@ uint16_t readRegister16(uint8_t reg) {
   return (data[3]   | data[2] << 8);
 }
 
-//Read all axis
+// Read all axis
 void readAllAccel() {
   Wire.beginTransmission(INC_ADDRESS);
   Wire.write(0x03);
@@ -63,7 +63,7 @@ void readAllAccel() {
     i++;
   }
 
-  //Offset = 2 because the 2 first bytes are dummy (useless)
+  // Offset = 2 because the 2 first bytes are dummy (useless)
   int offset = 2;
   gyr_x =         (data[offset + 6]   | (uint16_t)data[offset + 7] << 8);  //0x06
   gyr_y =         (data[offset + 8]   | (uint16_t)data[offset + 9] << 8);  //0x07
@@ -115,10 +115,10 @@ void loop() {
   // =================== BMI323 Logic ======================================================
   readRegister16(0x02);
   if(readRegister16(0x02) == 0x00) {
-    //Read ChipID
+    // Read ChipID
     Serial.print("ChipID:");
     Serial.print(readRegister16(0x00));    
-    readAllAccel();             // read all accelerometer/gyroscope/temperature data  
+    readAllAccel();             // Read all accelerometer/gyroscope/temperature data  
     Serial.print(" \tgyr_x:");
     Serial.print(gyr_x);
     Serial.print(" \tgyr_y:");
@@ -127,9 +127,8 @@ void loop() {
     Serial.print(gyr_z);   
   }
   delay(500);
-  // =======================================================================================
-
-  //======================MLX90640 Part=====================================================
+  
+  //====================== MLX90640 Part =====================================================
   float temp640[32*24];
   mlx2.getFrame(temp640);
   float sum = 0;
