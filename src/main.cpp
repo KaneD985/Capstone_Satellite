@@ -5,6 +5,7 @@
 #include <Adafruit_MLX90614.h>
 #include <Adafruit_MLX90640.h>
 #include <math.h>
+#include <TeensyThreads.h>
 
 #define INC_ADDRESS 0x68
 #define ACC_CONF  0x20  //Page 91
