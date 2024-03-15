@@ -117,22 +117,17 @@ void loop() {
   msg1.buf[2] = sendAmbVal >> 8;
   msg1.buf[3] = sendAmbVal & 0xFF;
 
-  msg2.buf[0] = sendObjVal >> 8;
-  msg2.buf[1] = sendObjVal & 0xFF;
-  msg2.buf[2] = sendAmbVal >> 8;
-  msg2.buf[3] = sendAmbVal & 0xFF;
+  msg2.buf[0] = 1 >> 8;
+  msg2.buf[1] = 1 & 0xFF;
   
-  msg3.buf[0] = sendObjVal >> 8;
-  msg3.buf[1] = sendObjVal & 0xFF;
-  msg3.buf[2] = sendAmbVal >> 8;
-  msg3.buf[3] = sendAmbVal & 0xFF;
+  msg3.buf[0] = 2 >> 8;
+  msg3.buf[1] = 2 & 0xFF;
 
-  msg4.buf[0] = sendObjVal >> 8;
-  msg4.buf[1] = sendObjVal & 0xFF;
-  msg4.buf[2] = sendAmbVal >> 8;
-  msg4.buf[3] = sendAmbVal & 0xFF;
+  msg4.buf[0] = 3 >> 8;
+  msg4.buf[1] = 3 & 0xFF;
 
   bool writeResult = CANbus.write(msg1) & CANbus.write(msg2) & CANbus.write(msg3) & CANbus.write(msg4);  // Send the message
+  // bool writeResult = CANbus.write(msg1);
   Serial.print("Writing Message: ");
   Serial.println(writeResult);  // Print the result of the write operation
 
