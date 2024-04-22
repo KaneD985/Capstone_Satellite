@@ -115,6 +115,7 @@ void setup() {
   CANbus.setBaudRate(500000); 
   mlx.begin();
   mlx2.begin();
+  mlx2.setRefreshRate(MLX90640_2_HZ);
   softReset();
   writeRegister16(ACC_CONF, 0x708B); 
   writeRegister16(GYR_CONF, 0x708B);
