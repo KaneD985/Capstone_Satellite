@@ -6,6 +6,7 @@
 #include <Adafruit_MLX90640.h>
 #include <math.h>
 #include <TeensyThreads.h>
+#include <queue>
 
 #define INC_ADDRESS 0x68
 #define ACC_CONF  0x20  //Page 91
@@ -24,6 +25,8 @@ int16_t signed_gyr_x, signed_gyr_y, signed_gyr_z;
 IntervalTimer halleffectTimer;
 volatile  double last_rpm = 0;
 volatile int numOfRotations = 0;
+volatile int lastReadHallEffect = 0;
+std::deque<double> past10readins;
 
 //Convert Raw Data in 2's Complement to Normal
 int16_t twosComplementToNormal(uint16_t raw) {
@@ -85,18 +88,32 @@ void softReset(){
   delay(50);    
 }
 
+double calculateAVGRPM() {
+  double newRPM = 0;
+  int n = past10readins.size();
+  for (int i = 0; i < n - 10; i++) {
+    past10readins.pop_front();
+  }
+  for (int i = 0; i < 10; i++) {
+    newRPM += past10readins[i];
+  }
+  return newRPM / 10.00;
+}
+
 void calculateRPM() {
   double rpm = numOfRotations / (TIMER_MICROSECONDS / 1000000.0);
   numOfRotations = 0;
-  last_rpm = rpm;
+  past10readins.push_back(rpm);
+  last_rpm = calculateAVGRPM();    
 }
 
 void thread_func() {
   while(true) {
     uint8_t halleffectOuput = digitalRead(hallEffectPin);
-    if (halleffectOuput == 0) {
+    if (halleffectOuput == 0 && lastReadHallEffect == 1) {
       numOfRotations ++;
     }
+    lastReadHallEffect = halleffectOutput;
   }
 }
 
