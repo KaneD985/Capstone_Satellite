@@ -6,6 +6,7 @@
 #include <Adafruit_MLX90640.h>
 #include <math.h>
 #include <TeensyThreads.h>
+#include <queue>
 
 #define INC_ADDRESS 0x68
 #define ACC_CONF  0x20  //Page 91
@@ -27,26 +28,43 @@ CAN_message_t msg4;
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
 Adafruit_MLX90640 mlx2;
 
+
 // =================== Hall Effect Variables ========================================
 IntervalTimer halleffectTimer;
 volatile  double last_rpm = 0;
 volatile int numOfRotations = 0;
+volatile int lastReadHallEffect = 0;
+std::deque<double> past10readins;
 uint16_t gyr_x, gyr_y, gyr_z;
 int16_t signed_gyr_x, signed_gyr_y, signed_gyr_z;
 
 // =================== HE Helper Function Definitions ===============================
+double calculateAVGRPM() {
+  double newRPM = 0;
+  int n = past10readins.size();
+  for (int i = 0; i < n - 10; i++) {
+    past10readins.pop_front();
+  }
+  for (int i = 0; i < 10; i++) {
+    newRPM += past10readins[i];
+  }
+  return newRPM / 10.00;
+}
+
 void calculateRPM() {
   double rpm = numOfRotations / (TIMER_MICROSECONDS / 1000000.0);
   numOfRotations = 0;
-  last_rpm = rpm;
+  past10readins.push_back(rpm);
+  last_rpm = calculateAVGRPM();    
 }
 
 void thread_func() {
   while(true) {
-    uint8_t halleffectOuput = digitalRead(hallEffectPin);
-    if (halleffectOuput == 0) {
+    uint8_t halleffectOutput = digitalRead(hallEffectPin);
+    if (halleffectOutput == 0 && lastReadHallEffect == 1) {
       numOfRotations ++;
     }
+    lastReadHallEffect = halleffectOutput;
   }
 }
 
@@ -66,6 +84,7 @@ void setup() {
   CANbus.setBaudRate(500000); 
   mlx.begin();
   mlx2.begin();
+  mlx2.setRefreshRate(MLX90640_2_HZ);
 }
 
 void loop() {
@@ -85,23 +104,23 @@ void loop() {
   Serial.println("\n Loop Running... \n");
 
   //====================== MLX90640 Logic ============================================
-  // float temp640[32*24];
-  // mlx2.getFrame(temp640);
-  // float sum = 0;
-  // for (uint8_t h=0; h<24; h++) {
-  //   for (uint8_t w=0; w<32; w++) {
-  //     float t = temp640[h*32 + w] - 273.0;
-  //     Serial.print(t); Serial.print(" ");
-  //     sum += t;
-  //   }
-  //   printf("\n");
-  // }
+  float temp640[32*24];
+  mlx2.getFrame(temp640);
+  float sum = 0;
+  for (uint8_t h=0; h<24; h++) {
+    for (uint8_t w=0; w<32; w++) {
+      float t = temp640[h*32 + w] - 273.0;
+      Serial.print(t); Serial.print(" ");
+      sum += t;
+    }
+    printf("\n");
+  }
   
-  // float average = sum / (32*24);
-  // Serial.print("Average: "); 
-  // Serial.println(average);
+  float average = sum / (32*24);
+  Serial.print("Average: "); 
+  Serial.println(average);
 
-  // delay(500);
+  delay(500);
 
   //===================== MLX90614 Logic =============================================
   float tempO = mlx.readObjectTempC();
