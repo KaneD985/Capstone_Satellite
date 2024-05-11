@@ -34,6 +34,66 @@ Adafruit_MLX90640 mlx2;
 uint16_t gyr_x, gyr_y, gyr_z;
 int16_t signed_gyr_x, signed_gyr_y, signed_gyr_z;
 
+// =================== BMI323 Helper Function Definitions ==============================================
+// Write data in 16 bits
+void writeRegister16(uint16_t reg, uint16_t value) {
+  Wire.beginTransmission(INC_ADDRESS);
+  Wire.write(reg);
+  //Low 
+  Wire.write((uint16_t)value & 0xff);
+  //High
+  Wire.write((uint16_t)value >> 8);
+  Wire.endTransmission();
+}
+
+// Read data in 16 bits
+uint16_t readRegister16(uint8_t reg) {
+  Wire.beginTransmission(INC_ADDRESS);
+  Wire.write(reg);
+  Wire.endTransmission(false);
+  int n = Wire.requestFrom(INC_ADDRESS, 4);  
+  uint16_t data[20];
+  int i = 0;
+  while(Wire.available()){
+    data[i] = Wire.read();
+    i++;
+  }  
+  return (data[3]|data[2] << 8);
+}
+
+// Read all axis
+void readAllAccel() {
+  Wire.beginTransmission(INC_ADDRESS);
+  Wire.write(0x03);
+  Wire.endTransmission();
+  Wire.requestFrom(INC_ADDRESS, 20);
+  uint16_t data[20];
+  int i =0;
+  while(Wire.available()){
+    data[i] = Wire.read();
+    i++;
+  }
+
+  // Offset = 2 because the 2 first bytes are dummy (useless)
+  int offset = 2;
+  gyr_x = (data[offset + 6]   | (uint16_t)data[offset + 7] << 8);  //0x06
+  gyr_y = (data[offset + 8]   | (uint16_t)data[offset + 9] << 8);  //0x07
+  gyr_z = (data[offset + 10]  | (uint16_t)data[offset + 11] << 8); //0x08
+}
+
+void softReset(){  
+  writeRegister16(CMD, 0xDEAF);
+  delay(50);    
+}
+
+int16_t twosComplementToNormal(uint16_t raw) {
+    if (raw & (1 << 15)) {
+        return -((~raw + 1) & 0xFFFF);
+    } else {
+        return raw;
+    }
+}
+
 // =================== Hall Effect Variables ========================================
 IntervalTimer halleffectTimer;
 volatile  double last_rpm = 0;
@@ -74,6 +134,10 @@ void thread_func() {
 }
 
 // =================== Setup Function ===============================================
+uint16_t readRegister16(uint8_t reg);
+void readAllAccel(); 
+int16_t twosComplementToNormal(uint16_t raw); 
+
 void setup() {
   pinMode(ledPin, OUTPUT);
   pinMode(hallEffectPin, INPUT);
@@ -140,18 +204,54 @@ void loop() {
   int sendObjVal = tempO * 100;
   int sendAmbVal = tempA * 100;
 
+  //====================== BMI323 Logic =============================================
+  readRegister16(0x02);
+    if(readRegister16(0x02) == 0x00) {
+      //Read ChipID
+      Serial.print("ChipID:");
+      Serial.print(readRegister16(0x00));    
+      readAllAccel();             
+      signed_gyr_x = twosComplementToNormal(gyr_x)/262.1;
+      signed_gyr_y = twosComplementToNormal(gyr_y)/262.1;
+      signed_gyr_z = twosComplementToNormal(gyr_z)/262.1;
+      Serial.print(" \tgyr_x:");
+      Serial.print(signed_gyr_x);
+      Serial.print(" \tgyr_y:");
+      Serial.print(signed_gyr_y);
+      Serial.print(" \tgyr_z:");
+      Serial.println(signed_gyr_z);   
+    }
+  }
+
   //===================== SD Card Data Logging ======================================
-  File dataFile = SD.open("datalog.txt", FILE_WRITE);
-  // if the file is available, write the contents of datastring to it
+  File dataFile = SD.open("BrakeTemp.txt", FILE_WRITE);
   if (dataFile) {
-    dataFile.println(dataString);
+    dataFile.println(sendObjVal);
     dataFile.close();
   }  
-  // if the file isn't open, pop up an error:
   else {
     Serial.println("error opening datalog.txt");
   }   
 
+  File dataFile = SD.open("TireTemp.txt", FILE_WRITE);
+  if (dataFile) {
+    dataFile.println(temp640); //Change this to correct thing for Multipixel Sensor
+    dataFile.close();
+  }  
+  else {
+    Serial.println("error opening datalog.txt");
+  }   
+
+  File dataFile = SD.open("IMU.txt", FILE_WRITE);
+  if (dataFile) {
+    dataFile.println(signed_gyr_x);
+    dataFile.println(signed_gyr_y); 
+    dataFile.println(signed_gyr_z);
+    dataFile.close();
+  }  
+  else {
+    Serial.println("error opening datalog.txt");
+  }   
   //===================== Data Push ==================================================
   // msg1.buf[0] = sendObjVal >> 8;
   // msg1.buf[1] = sendObjVal & 0xFF;
