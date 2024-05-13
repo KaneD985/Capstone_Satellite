@@ -33,6 +33,9 @@ Adafruit_MLX90640 mlx2;
 // =================== BMI Variables ================================================
 uint16_t gyr_x, gyr_y, gyr_z;
 int16_t signed_gyr_x, signed_gyr_y, signed_gyr_z;
+uint16_t acc_x, acc_y, acc_z;
+int16_t signed_acc_x, signed_acc_y, signed_acc_z;
+
 
 // =================== BMI323 Helper Function Definitions ==============================================
 // Write data in 16 bits
@@ -76,6 +79,9 @@ void readAllAccel() {
 
   // Offset = 2 because the 2 first bytes are dummy (useless)
   int offset = 2;
+  acc_x = (data[offset + 0]  | (uint16_t)data[offset + 1] << 8); //0x00
+  acc_y = (data[offset + 2]  | (uint16_t)data[offset + 3] << 8); //0x02
+  acc_z = (data[offset + 4]  | (uint16_t)data[offset + 5] << 8); //0x04
   gyr_x = (data[offset + 6]   | (uint16_t)data[offset + 7] << 8);  //0x06
   gyr_y = (data[offset + 8]   | (uint16_t)data[offset + 9] << 8);  //0x07
   gyr_z = (data[offset + 10]  | (uint16_t)data[offset + 11] << 8); //0x08
@@ -192,10 +198,9 @@ void loop() {
     }
     printf("\n");
   }
-  float average = sum / (32*24);
+  int16_t Tire_temp = sum / (32*24);
   Serial.print("Average: "); 
-  Serial.println(average);
-
+  Serial.println(Tire_temp);
   delay(500);
 
   //===================== MLX90614 Logic =============================================
@@ -211,6 +216,10 @@ void loop() {
       Serial.print("ChipID:");
       Serial.print(readRegister16(0x00));    
       readAllAccel();             
+
+      signed_acc_x = twosComplementToNormal(acc_x)/262.1;
+      signed_acc_y = twosComplementToNormal(acc_y)/262.1;
+      signed_acc_z = twosComplementToNormal(acc_z)/262.1;
       signed_gyr_x = twosComplementToNormal(gyr_x)/262.1;
       signed_gyr_y = twosComplementToNormal(gyr_y)/262.1;
       signed_gyr_z = twosComplementToNormal(gyr_z)/262.1;
@@ -221,7 +230,6 @@ void loop() {
       Serial.print(" \tgyr_z:");
       Serial.println(signed_gyr_z);   
     }
-  }
 
   //===================== SD Card Data Logging ======================================
   File dataFile = SD.open("BrakeTemp.txt", FILE_WRITE);
@@ -257,21 +265,29 @@ void loop() {
   // msg1.buf[1] = sendObjVal & 0xFF;
   // msg1.buf[2] = sendAmbVal >> 8;
   // msg1.buf[3] = sendAmbVal & 0xFF;
+  // msg1.buf[4] = Tire_temp >> 8;
+  // msg1.buf[5] = Tire_temp & 0xFF;
 
   msg2.buf[0] = sendObjVal >> 8;
   msg2.buf[1] = sendObjVal & 0xFF;
   msg2.buf[2] = sendAmbVal >> 8;
   msg2.buf[3] = sendAmbVal & 0xFF;
+  msg2.buf[4] = Tire_temp >> 8;
+  msg2.buf[5] = Tire_temp & 0xFF;
 
   // msg3.buf[0] = sendObjVal >> 8;
   // msg3.buf[1] = sendObjVal & 0xFF;
   // msg3.buf[2] = sendAmbVal >> 8;
   // msg3.buf[3] = sendAmbVal & 0xFF;
+  // msg3.buf[4] = Tire_temp >> 8;
+  // msg3.buf[5] = Tire_temp & 0xFF;
 
   // msg4.buf[0] = sendObjVal >> 8;
   // msg4.buf[1] = sendObjVal & 0xFF;
   // msg4.buf[2] = sendAmbVal >> 8;
   // msg4.buf[3] = sendAmbVal & 0xFF;
+  // msg4.buf[4] = Tire_temp >> 8;
+  // msg4.buf[5] = Tire_temp & 0xFF;
 
   // bool writeResult = CANbus.write(msg1) & CANbus.write(msg2) & CANbus.write(msg3) & CANbus.write(msg4);  // Send the message
   // bool writeResult = CANbus.write(msg1);
