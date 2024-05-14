@@ -19,12 +19,36 @@ const int ledPin = 13;
 const int hallEffectPin = 41;
 const int chipSelect = BUILTIN_SDCARD;
 const double TIMER_MICROSECONDS = 150000;
-FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> CANbus;    // For custom PCB IT'S CAN 2 !!!!!! DONT FUCKING CHANGE IT 
+FlexCAN_T4FD<CAN2, RX_SIZE_256, TX_SIZE_16> CANbus;    // For custom PCB IT'S CAN 2 !!!!!! DONT FUCKING CHANGE IT 
 // FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> CANbus;    // For old PCB IT'S CAN 3 !!!!!!!!!!!!!!
 CAN_message_t msg1;
 CAN_message_t msg2;
 CAN_message_t msg3;
 CAN_message_t msg4;
+
+CAN_message_t FR_ACC;
+CAN_message_t FR_GYR;
+CAN_message_t FR_BRAKE_TEMP;
+CAN_message_t FR_TIRE_TEMP;
+CAN_message_t FR_ANALOG;
+
+CAN_message_t FL_ACC;
+CAN_message_t FL_GYR;
+CAN_message_t FL_BRAKE_TEMP;
+CAN_message_t FL_TIRE_TEMP;
+CAN_message_t FL_ANALOG;
+
+CAN_message_t RR_ACC;
+CAN_message_t RR_GYR;
+CAN_message_t RR_BRAKE_TEMP;
+CAN_message_t RR_TIRE_TEMP;
+CAN_message_t RR_ANALOG;
+
+CAN_message_t RL_ACC;
+CAN_message_t RL_GYR;
+CAN_message_t RL_BRAKE_TEMP;
+CAN_message_t RL_TIRE_TEMP;
+CAN_message_t RL_ANALOG;
 
 // =================== MLX Variables ================================================
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
@@ -171,18 +195,30 @@ void setup() {
 }
 
 void loop() {
+  FR_ANALOG.id = 0x10F00;
+  FR_ACC.id = 0x10F01;
+  FR_GYR.id = 0x10F02;
+  FR_BRAKE_TEMP.id = 0x10F03;
+  FR_TIRE_TEMP.id = 0x10F04;
+  
+  FL_ANALOG.id = 0x10F05;
+  FL_ACC.id = 0x10F06;
+  FR_GYR.id = 0x10F07;
+  FL_BRAKE_TEMP.id = 0x10F08;
+  FL_TIRE_TEMP.id = 0x10F09;
+
+  RR_ANALOG.id = 0x10F10;
+  RR_ACC.id = 0x10F11;
+  RR_GYR.id = 0x10F12;
+  RR_BRAKE_TEMP.id = 0x10F13;
+  RR_TIRE_TEMP.id = 0x10F14;
+
+  RL_ANALOG.id = 0x10F15;
+  RL_ACC.id = 0x10F16;
+  RL_GYR.id = 0x10F17;
+  RL_BRAKE_TEMP.id = 0x10F18;
+  RL_TIRE_TEMP.id = 0x10F19;
   // =================== CAN Message Setup ===========================================
-  // msg1.id = 0x100; 
-  // msg1.len = 8; 
-
-  msg2.id = 0x101; 
-  msg2.len = 8; 
-
-  // msg3.id = 0x102; 
-  // msg3.len = 8;    
-
-  // msg4.id = 0x103; 
-  // msg4.len = 8;    
 
   Serial.println("\n Loop Running... \n");
 
@@ -261,39 +297,22 @@ void loop() {
     Serial.println("error opening datalog.txt");
   }   
   //===================== Data Push ==================================================
-  // msg1.buf[0] = sendObjVal >> 8;
-  // msg1.buf[1] = sendObjVal & 0xFF;
-  // msg1.buf[2] = sendAmbVal >> 8;
-  // msg1.buf[3] = sendAmbVal & 0xFF;
-  // msg1.buf[4] = Tire_temp >> 8;
-  // msg1.buf[5] = Tire_temp & 0xFF;
+  
+  FR_ACC.buf[0] = (signed_acc_x >> 8) & 0xFF;
+  FR_ACC.buf[1] = signed_acc_x & 0xFF;
+  FR_ACC.buf[2] = (signed_acc_y >> 8) & 0xFF;
+  FR_ACC.buf[3] = signed_acc_y & 0xFF;
+  FR_ACC.buf[4] = (signed_acc_z >> 8) & 0xFF;
+  FR_ACC.buf[5] = signed_acc_z & 0xFF;
+  FR_GYR.buf[0] = (signed_gyr_x >> 8) & 0xFF;
+  FR_GYR.buf[1] = signed_gyr_x & 0xFF;
+  FR_GYR.buf[2] = (signed_gyr_y >> 8) & 0xFF;
+  FR_GYR.buf[3] = signed_gyr_y & 0xFF;
+  FR_GYR.buf[4] = (signed_gyr_z >> 8) & 0xFF;
+  FR_GYR.buf[5] = signed_gyr_z & 0xFF;
 
-  msg2.buf[0] = sendObjVal >> 8;
-  msg2.buf[1] = sendObjVal & 0xFF;
-  msg2.buf[2] = sendAmbVal >> 8;
-  msg2.buf[3] = sendAmbVal & 0xFF;
-  msg2.buf[4] = Tire_temp >> 8;
-  msg2.buf[5] = Tire_temp & 0xFF;
-
-  // msg3.buf[0] = sendObjVal >> 8;
-  // msg3.buf[1] = sendObjVal & 0xFF;
-  // msg3.buf[2] = sendAmbVal >> 8;
-  // msg3.buf[3] = sendAmbVal & 0xFF;
-  // msg3.buf[4] = Tire_temp >> 8;
-  // msg3.buf[5] = Tire_temp & 0xFF;
-
-  // msg4.buf[0] = sendObjVal >> 8;
-  // msg4.buf[1] = sendObjVal & 0xFF;
-  // msg4.buf[2] = sendAmbVal >> 8;
-  // msg4.buf[3] = sendAmbVal & 0xFF;
-  // msg4.buf[4] = Tire_temp >> 8;
-  // msg4.buf[5] = Tire_temp & 0xFF;
-
-  // bool writeResult = CANbus.write(msg1) & CANbus.write(msg2) & CANbus.write(msg3) & CANbus.write(msg4);  // Send the message
-  // bool writeResult = CANbus.write(msg1);
-  bool writeResult = CANbus.write(msg2);
-  // bool writeResult = CANbus.write(msg3);
-  // bool writeResult = CANbus.write(msg4);
+  bool FR_ACC_send = CANbusFD.write(FR_ACC);
+  bool FR_GYR_send = CANbusFD.write(FR_GYR);
 
   Serial.print("Writing Message: ");
   Serial.println(writeResult);  // Print the result of the write operation
