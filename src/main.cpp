@@ -241,9 +241,7 @@ void loop() {
 
   //===================== MLX90614 Logic =============================================
   float tempO = mlx.readObjectTempC();
-  float tempA = mlx.readAmbientTempC();
-  int sendObjVal = tempO * 100;
-  int sendAmbVal = tempA * 100;
+  int Brake_temp = tempO * 100;
 
   //====================== BMI323 Logic =============================================
   readRegister16(0x02);
@@ -297,6 +295,14 @@ void loop() {
     Serial.println("error opening datalog.txt");
   }   
   //===================== Data Push ==================================================
+  FR_BTSH.buf[0] = Brake_temp >> 8;
+  FR_BTSH.buf[1] = Brake_temp & 0xFF;
+  FR_BTSH.buf[2] = Tire_temp >> 8;
+  FR_BTSH.buf[3] = Tire_temp & 0xFF;
+  FR_BTSH.buf[4] = Suspension >> 8;
+  RL_BTSH.buf[5] = Suspension & 0xFF;
+  RL_BTSH.buf[6] = last_rpm >> 8;
+  RL_BTSH.buf[7] = last_rpm & 0xFF;
   
   FR_ACC.buf[0] = (signed_acc_x >> 8) & 0xFF;
   FR_ACC.buf[1] = signed_acc_x & 0xFF;
