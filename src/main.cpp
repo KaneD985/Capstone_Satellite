@@ -22,17 +22,17 @@ const double TIMER_MICROSECONDS = 150000;
 FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> CANbus; // For custom PCB IT'S CAN 2 !!!!!! DONT FUCKING CHANGE IT
 // FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> CANbus;    // For old PCB IT'S CAN 3 !!!!!!!!!!!!!!
 
-CAN_message_t FL_BTSH; // BTSH stands for Brake_temp, Tire_temp, Suspension, Hall_Effect
-CAN_message_t FL_ACC;
-CAN_message_t FL_GYR;
+// CAN_message_t FL_BTSH; // BTSH stands for Brake_temp, Tire_temp, Suspension, Hall_Effect
+// CAN_message_t FL_ACC;
+// CAN_message_t FL_GYR;
 
 // CAN_message_t FR_BTSH;
 // CAN_message_t FR_ACC;
 // CAN_message_t FR_GYR;
 
-// CAN_message_t RL_BTSH;
-// CAN_message_t RL_ACC;
-// CAN_message_t RL_GYR;
+CAN_message_t RL_BTSH;
+CAN_message_t RL_ACC;
+CAN_message_t RL_GYR;
 
 // CAN_message_t RR_BTSH;
 // CAN_message_t RR_ACC;
@@ -194,12 +194,12 @@ void setup(){
 
 void loop(){
   // =================== CAN Message Setup ===========================================
-  FL_BTSH.id = 0x100;
-  FL_BTSH.len = 8;
-  FL_ACC.id = 0x101;
-  FL_ACC.len = 8;
-  FL_GYR.id = 0x102;
-  FL_GYR.len = 8;
+  // FL_BTSH.id = 0x100;
+  // FL_BTSH.len = 8;
+  // FL_ACC.id = 0x101;
+  // FL_ACC.len = 8;
+  // FL_GYR.id = 0x102;
+  // FL_GYR.len = 8;
 
   // FR_BTSH.id = 0x200;
   // FR_BTSH.len = 8;
@@ -208,12 +208,12 @@ void loop(){
   // FR_GYR.id = 0x202;
   // FR_GYR.len = 8;
 
-  // RL_BTSH.id = 0x300;
-  // RL_BTSH.len = 8;
-  // RL_ACC.id = 0x301;
-  // RL_ACC.len = 8;
-  // RL_GYR.id = 0x302;
-  // RL_GYR.len = 8;
+  RL_BTSH.id = 0x300;
+  RL_BTSH.len = 8;
+  RL_ACC.id = 0x301;
+  RL_ACC.len = 8;
+  RL_GYR.id = 0x302;
+  RL_GYR.len = 8;
 
   // RR_BTSH.id = 0x400;
   // RR_BTSH.len = 8;
@@ -240,45 +240,40 @@ void loop(){
   Serial.print("Average: ");
   Serial.println(Tire_temp);
 
-  delay(500);
+  // delay(500);
 
   //===================== MLX90614 Logic =============================================
   float tempO = mlx.readObjectTempC();
   int Brake_temp = tempO * 100;
+  Serial.print("Brake Temp: ");
+  Serial.println(Brake_temp);
 
   //====================== BMI323 Logic =============================================
-  Serial.println(readRegister16(0x02));
   readRegister16(0x02);
   // if (readRegister16(0x02) == 0x00){
-    // Read ChipID
-    Serial.print("ChipID:");
-    Serial.println(readRegister16(0x00));
-    readAllAccel();
+  readAllAccel();
+  signed_acc_x = twosComplementToNormal(acc_x) / 16384. + 2.;
+  signed_acc_y = twosComplementToNormal(acc_y) / 16384. + 2.;
+  signed_acc_z = twosComplementToNormal(acc_z) / 16384. + 2.;
 
-    signed_acc_x = twosComplementToNormal(acc_x) / 16384.;
-    signed_acc_y = twosComplementToNormal(acc_y) / 16384.;
-    signed_acc_z = twosComplementToNormal(acc_z) / 16384.;
+  signed_gyr_x = twosComplementToNormal(gyr_x) / 262.1 + 125.;
+  signed_gyr_y = twosComplementToNormal(gyr_y) / 262.1 + 125.;
+  signed_gyr_z = twosComplementToNormal(gyr_z) / 262.1 + 125.;
 
-    signed_gyr_x = twosComplementToNormal(gyr_x) / 262.1;
-    signed_gyr_y = twosComplementToNormal(gyr_y) / 262.1;
-    signed_gyr_z = twosComplementToNormal(gyr_z) / 262.1;
+  Serial.print("Accel X: ");
+  Serial.println(signed_acc_x);
+  Serial.print("Accel Y: ");
+  Serial.println(signed_acc_y);
+  Serial.print("Accel Z: ");
+  Serial.println(signed_acc_z);
+  Serial.print("Gyro X: ");
+  Serial.println(signed_gyr_x);
+  Serial.print("Gyro Y: ");
+  Serial.println(signed_gyr_y);
+  Serial.print("Gyro Z: ");
+  Serial.println(signed_gyr_z);
 
-    Serial.print("Accel X: ");
-    Serial.println(signed_acc_x);
-    Serial.print("Accel Y: ");
-    Serial.println(signed_acc_y);
-    Serial.print("Accel Z: ");
-    Serial.println(signed_acc_z);
-    Serial.print("Gyro X: ");
-    Serial.println(signed_gyr_x);
-    Serial.print("Gyro Y: ");
-    Serial.println(signed_gyr_y);
-    Serial.print("Gyro Z: ");
-    Serial.println(signed_gyr_z);
-
-  // }
-
-  delay(500);
+  // delay(500);
 
   //===================== SD Card Data Logging ======================================
   // File dataFile = SD.open("BrakeTemp.txt", FILE_WRITE);
@@ -313,28 +308,28 @@ void loop(){
   //===================== Data Push ==================================================
   int16_t Suspension = 0;
     //=================== FL Module ================================================
-  FL_BTSH.buf[0] = Brake_temp >> 8;
-  FL_BTSH.buf[1] = Brake_temp & 0xFF;
-  FL_BTSH.buf[2] = Tire_temp >> 8;
-  FL_BTSH.buf[3] = Tire_temp & 0xFF;
-  FL_BTSH.buf[4] = Suspension >> 8;
-  FL_BTSH.buf[5] = Suspension & 0xFF;
-  FL_BTSH.buf[6] = last_rpm >> 8;
-  FL_BTSH.buf[7] = last_rpm & 0xFF;
+  // FL_BTSH.buf[0] = Brake_temp >> 8;
+  // FL_BTSH.buf[1] = Brake_temp & 0xFF;
+  // FL_BTSH.buf[2] = Tire_temp >> 8;
+  // FL_BTSH.buf[3] = Tire_temp & 0xFF;
+  // FL_BTSH.buf[4] = Suspension >> 8;
+  // FL_BTSH.buf[5] = Suspension & 0xFF;
+  // FL_BTSH.buf[6] = last_rpm >> 8;
+  // FL_BTSH.buf[7] = last_rpm & 0xFF;
 
-  FL_ACC.buf[0] = signed_acc_x >> 8;
-  FL_ACC.buf[1] = signed_acc_x & 0xFF;
-  FL_ACC.buf[2] = signed_acc_y >> 8;
-  FL_ACC.buf[3] = signed_acc_y & 0xFF;
-  FL_ACC.buf[4] = signed_acc_z >> 8;
-  FL_ACC.buf[5] = signed_acc_z & 0xFF;
+  // FL_ACC.buf[0] = signed_acc_x >> 8;
+  // FL_ACC.buf[1] = signed_acc_x & 0xFF;
+  // FL_ACC.buf[2] = signed_acc_y >> 8;
+  // FL_ACC.buf[3] = signed_acc_y & 0xFF;
+  // FL_ACC.buf[4] = signed_acc_z >> 8;
+  // FL_ACC.buf[5] = signed_acc_z & 0xFF;
 
-  FL_GYR.buf[0] = signed_gyr_x >> 8;
-  FL_GYR.buf[1] = signed_gyr_x & 0xFF;
-  FL_GYR.buf[2] = signed_gyr_y >> 8;
-  FL_GYR.buf[3] = signed_gyr_y & 0xFF;
-  FL_GYR.buf[4] = signed_gyr_z >> 8;
-  FL_GYR.buf[5] = signed_gyr_z & 0xFF;
+  // FL_GYR.buf[0] = signed_gyr_x >> 8;
+  // FL_GYR.buf[1] = signed_gyr_x & 0xFF;
+  // FL_GYR.buf[2] = signed_gyr_y >> 8;
+  // FL_GYR.buf[3] = signed_gyr_y & 0xFF;
+  // FL_GYR.buf[4] = signed_gyr_z >> 8;
+  // FL_GYR.buf[5] = signed_gyr_z & 0xFF;
 
     //=================== FR Module ================================================
   // FR_BTSH.buf[0] = Brake_temp >> 8;
@@ -361,28 +356,39 @@ void loop(){
   // FR_GYR.buf[5] = signed_gyr_z & 0xFF;
 
     //=================== RL Module ================================================
-  // RL_BTSH.buf[0] = Brake_temp >> 8;
-  // RL_BTSH.buf[1] = Brake_temp & 0xFF;
-  // RL_BTSH.buf[2] = Tire_temp >> 8;
-  // RL_BTSH.buf[3] = Tire_temp & 0xFF;
-  // RL_BTSH.buf[4] = Suspension >> 8;
-  // RL_BTSH.buf[5] = Suspension & 0xFF;
-  // RL_BTSH.buf[6] = last_rpm >> 8;
-  // RL_BTSH.buf[7] = last_rpm & 0xFF;
+  RL_BTSH.buf[0] = Brake_temp >> 8;
+  RL_BTSH.buf[1] = Brake_temp & 0xFF;
+  RL_BTSH.buf[2] = Tire_temp >> 8;
+  RL_BTSH.buf[3] = Tire_temp & 0xFF;
+  RL_BTSH.buf[4] = Suspension >> 8;
+  RL_BTSH.buf[5] = Suspension & 0xFF;
+  RL_BTSH.buf[6] = last_rpm >> 8;
+  RL_BTSH.buf[7] = last_rpm & 0xFF;
 
-  // RL_ACC.buf[0] = signed_acc_x >> 8;
-  // RL_ACC.buf[1] = signed_acc_x & 0xFF;
-  // RL_ACC.buf[2] = signed_acc_y >> 8;
-  // RL_ACC.buf[3] = signed_acc_y & 0xFF;
-  // RL_ACC.buf[4] = signed_acc_z >> 8;
-  // RL_ACC.buf[5] = signed_acc_z & 0xFF;
+  RL_ACC.buf[0] = signed_acc_x >> 8;
+  RL_ACC.buf[1] = signed_acc_x & 0xFF;
+  RL_ACC.buf[2] = signed_acc_y >> 8;
+  RL_ACC.buf[3] = signed_acc_y & 0xFF;
+  RL_ACC.buf[4] = signed_acc_z >> 8;
+  RL_ACC.buf[5] = signed_acc_z & 0xFF;
 
-  // RL_GYR.buf[0] = signed_gyr_x >> 8;
-  // RL_GYR.buf[1] = signed_gyr_x & 0xFF;
-  // RL_GYR.buf[2] = signed_gyr_y >> 8;
-  // RL_GYR.buf[3] = signed_gyr_y & 0xFF;
-  // RL_GYR.buf[4] = signed_gyr_z >> 8;
-  // RL_GYR.buf[5] = signed_gyr_z & 0xFF;
+  RL_GYR.buf[0] = signed_gyr_x >> 8;
+  RL_GYR.buf[1] = signed_gyr_x & 0xFF;
+  RL_GYR.buf[2] = signed_gyr_y >> 8;
+  RL_GYR.buf[3] = signed_gyr_y & 0xFF;
+  RL_GYR.buf[4] = signed_gyr_z >> 8;
+  RL_GYR.buf[5] = signed_gyr_z & 0xFF;
+
+  Serial.println("GYR_X: ");
+  Serial.println(RL_GYR.buf[0]);
+  Serial.println(RL_GYR.buf[1]);
+  Serial.println("GYR_Y: ");
+  Serial.println(RL_GYR.buf[2]);
+  Serial.println(RL_GYR.buf[3]);
+  Serial.println("GYR_Z: ");
+  Serial.println(RL_GYR.buf[4]);
+  Serial.println(RL_GYR.buf[5]);
+
 
     //=================== RR Module ================================================
   // RR_BTSH.buf[0] = Brake_temp >> 8;
@@ -408,9 +414,9 @@ void loop(){
   // RR_GYR.buf[4] = signed_gyr_z >> 8;
   // RR_GYR.buf[5] = signed_gyr_z & 0xFF;
 
-  bool writeResult = CANbus.write(FL_BTSH) & CANbus.write(FL_ACC) & CANbus.write(FL_GYR);
+  // bool writeResult = CANbus.write(FL_BTSH) & CANbus.write(FL_ACC) & CANbus.write(FL_GYR);
   // bool writeResult = CANbus.write(FR_BTSH) & CANbus.write(FR_ACC) & CANbus.write(FR_GYR);
-  // bool writeResult = CANbus.write(RL_BTSH) & CANbus.write(RL_ACC) & CANbus.write(RL_GYR);
+  bool writeResult = CANbus.write(RL_BTSH) & CANbus.write(RL_ACC) & CANbus.write(RL_GYR);
   // bool writeResult = CANbus.write(RR_BTSH) & CANbus.write(RR_ACC) & CANbus.write(RR_GYR);
 
   Serial.print("Writing Message: ");
